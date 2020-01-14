@@ -14,10 +14,12 @@ parts
 bin
 var
 sdist
+deb_dist
 develop-eggs
 .installed.cfg
 lib
 lib64
+VERSION
 
 # Installer logs
 pip-log.txt

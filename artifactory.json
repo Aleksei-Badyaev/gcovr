@@ -1,0 +1,13 @@
+{
+    "files": [
+        {   "pattern": "dist/*.tar.gz",
+            "target": "mousesoft/gcovr/VERSION/BRANCH/"
+        },
+        {   "pattern": "dist/*.whl",
+            "target": "mousesoft/gcovr/VERSION/BRANCH/"
+        },
+        {   "pattern": "deb_dist/*.deb",
+            "target": "mousesoft/gcovr/VERSION/BRANCH/"
+        }
+    ]
+}
