@@ -40,3 +40,4 @@ testcase
 .mr.developer.cfg
 .project
 .pydevproject
+.vscode
