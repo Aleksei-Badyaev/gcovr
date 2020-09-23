@@ -20,7 +20,7 @@ matrix:
   include:
   - python: '3.5'
   - python: '3.7'
-    env: COVERAGE_OPTS='--cov=gcovr --cov-branch' BUILD_DOCS=1
+    env: BUILD_DOCS=1
   - python: pypy3.5
 
 install:
@@ -31,8 +31,8 @@ install:
 
 script:
 - test -z "$RUN_LINTER" || make lint
-- test -z "$RUN_LINTER" || admin/release_checklist --no-verify-tags 4.2
-- make test TEST_OPTS="$COVERAGE_OPTS"
+- test -z "$RUN_LINTER" || admin/release_checklist --no-verify-tags --no-verify-docs-next-version 4.2
+- make test TEST_OPTS="$COVERAGE_OPTS --archive_differences"
 - test -z "$COVERAGE_OPTS" || codecov -X gcov search
 - test -z "$BUILD_DOCS" || make doc
 

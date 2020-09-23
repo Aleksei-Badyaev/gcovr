@@ -12,9 +12,47 @@ Breaking changes:
    From now on, gcovr will only support Python versions
    that enjoy upstream support.
 
+Improvements and new features:
+
+ - Handles spaces in ``gcov`` path. (:issue:`385`)
+ - Early fail when output cannot be created. (:issue:`346`)
+ - Add :option:`--txt` for text output. (:issue:`387`)
+ - Add :option:`--csv` for CSV output. (:issue:`376`)
+ - Add :option:`--exclude-lines-by-pattern` to filter out source lines by arbitrary
+   regex. (:issue:`356`)
+ - Add :option:`--json-summary` to generate a :ref:`JSON Summary <json_summary_output>` report. (:issue:`366`)
+ - Add :option:`--coveralls` to generate a :ref:`Coveralls <coveralls_output>` compatible JSON report. (:issue:`328`)
+ - Compare paths case insensitive if file system of working directory is case insensitive. (:issue:`329`)
+ - Enable filter option in add JSON tracefiles mode. (:issue:`373`)
+ - Only output 100.0% in text and HTML output if really 100.0%, else use 99.9%. (:issue:`375`)
+ - Changes for HTML output format:
+
+   - Change legend for threshold in html report. (:issue:`369`)
+   - Use HTML title also for report heading. Default value for :option:`--html-title` changed. (:issue:`296`)
+   - Add :option:`--html-tab-size` to configure tab size in HTML details. (:issue:`377`)
+   - Add option :option:`--html-css` for user defined styling. (:issue:`380`)
+   - Create details html filename independent from OS. (:issue:`375`)
+   - Add :option:`--html-theme` to change the color theme. (:issue:`381`)
+   - Add linkable lines in HTML details. (:issue:`401`)
+   - Add syntax highlighting in the details HTML report. This can be turned off with :option:`--no-html-details-syntax-highlighting <--html-details-syntax-highlighting>`. (:issue:`402`, :issue:`415`)
+
 Documentation:
 
  - Cookbook: :ref:`oos cmake` (:issue:`340`, :issue:`341`)
+
+Internal changes:
+
+ - Enable :option:`--filter` and :option:`--exclude` for :ref:`Combining tracefiles <combining_tracefiles>`. (:issue:`373`)
+ - Add GitHup actions to test PRs and master branch. (:issue:`404`)
+ - Extend test framework for CI:
+
+   - Set make variable TEST_OPTS as environment variable inside docker. (:issue:`372`)
+   - Add make variable USE_COVERAGE to extend flags for coverage report in GitHub actions. (:issue:`404`)
+   - Extend tests to use an unified diff in the assert. Add test options `--generate_reference`,
+     `--update_reference` and `--skip_clean`. (:issue:`374`)
+   - Support multiple output patterns in integration tests. (:issue:`383`)
+   - New option `--archive_differences` to save the different files as ZIP.
+     Use this ZIP as artifact in AppVeyor.  (:issue:`392`)
 
 4.2 (6 November 2019)
 ---------------------
@@ -194,14 +232,14 @@ Internal changes:
 3.1 (6 December 2013)
 ---------------------
 
- - Change to make the -r/--root options define the root directory 
+ - Change to make the -r/--root options define the root directory
    for source files.
  - Fix to apply the -p option when the --html option is used.
  - Adding new option, '--exclude-unreachable-branches' that
    will exclude branches in certain lines from coverage report.
  - Simplifying and standardizing the processing of linked files.
  - Adding tests for deeply nested code, and symbolic links.
- - Add support for multiple —filter options in same manner as —exclude 
+ - Add support for multiple —filter options in same manner as —exclude
    option.
 
 
@@ -213,7 +251,7 @@ Internal changes:
    overrides the environment variable, which overrides the default 'gcov'.
  - Adding an empty "<methods/>" block to <classes/> in the XML output: this
    makes out XML complient with the Cobertura DTD. (#3951)
- - Allow the GCOV environment variable to override the default 'gcov' 
+ - Allow the GCOV environment variable to override the default 'gcov'
    executable.  The default is to search the PATH for 'gcov' if the GCOV
    environment variable is not set. (#3950)
  - Adding support for LCOV-style flags for excluding certain lines from
@@ -292,8 +330,8 @@ Internal changes:
  - Adding timestamp and version attributes to the gcovr XML report (see
    #3877).  It looks like the standard Cobertura output reports number of
    seconds since the epoch for the timestamp and a doted decimal version
-   string.  Now, gcovr reports seconds since the epoch and 
-   "``gcovr ``"+``__version__`` (e.g. "gcovr 2.2") to differentiate it 
+   string.  Now, gcovr reports seconds since the epoch and
+   "``gcovr ``"+``__version__`` (e.g. "gcovr 2.2") to differentiate it
    from a pure Cobertura report.
 
 
@@ -327,4 +365,3 @@ Internal changes:
 
  - Initial release as a separate package.  Earlier versions of gcovr
    were managed within the 'fast' Python package.
-

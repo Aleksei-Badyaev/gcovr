@@ -133,11 +133,18 @@ def get_global_stats(covdata):
 
 
 def calculate_coverage(covered, total, nan_value=0.0):
-    return nan_value if total == 0 else round(100.0 * covered / total, 1)
+    coverage = nan_value
+    if total != 0:
+        coverage = round(100.0 * covered / total, 1)
+        # If we get 100.0% and not all branches are covered use 99.9%
+        if (coverage == 100.0) and (covered != total):
+            coverage = 99.9
+
+    return coverage
 
 
 class FilterOption(object):
-    def __init__(self, regex, path_context=None):
+    def __init__(self, regex, path_context=os.getcwd()):
         self.regex = regex
         self.path_context = path_context
 
@@ -156,9 +163,7 @@ class FilterOption(object):
         if os.path.isabs(self.regex):
             return AbsoluteFilter(self.regex)
         else:
-            path_context = (self.path_context if self.path_context is not None
-                            else os.getcwd())
-            return RelativeFilter(path_context, self.regex)
+            return RelativeFilter(self.path_context, self.regex)
 
 
 class NonEmptyFilterOption(FilterOption):
@@ -173,7 +178,12 @@ FilterOption.NonEmpty = NonEmptyFilterOption
 
 class Filter(object):
     def __init__(self, pattern):
-        self.pattern = re.compile(pattern)
+        cwd = os.getcwd()
+        # Guessing if file system is case insensitive.
+        # The working directory is not the root and accessible in upper and lower case.
+        is_fs_case_insensitive = (cwd != os.path.sep) and os.path.exists(cwd.upper()) and os.path.exists(cwd.lower())
+        flags = re.IGNORECASE if is_fs_case_insensitive else 0
+        self.pattern = re.compile(pattern, flags)
 
     def match(self, path):
         os_independent_path = path.replace(os.path.sep, '/')
@@ -341,3 +351,18 @@ def presentable_filename(filename, root_filter):
         normalized = filename
 
     return normalized.replace('\\', '/')
+
+
+def fixup_percent(percent):
+    # output csv percent values in range [0,1.0]
+    return percent / 100 if percent is not None else None
+
+
+def summarize_file_coverage(coverage, root_filter):
+    filename = presentable_filename(
+        coverage.filename, root_filter=root_filter)
+
+    branch_total, branch_covered, branch_percent = coverage.branch_coverage()
+    line_total, line_covered, line_percent = coverage.line_coverage()
+    return (filename, line_total, line_covered, fixup_percent(line_percent),
+            branch_total, branch_covered, fixup_percent(branch_percent))

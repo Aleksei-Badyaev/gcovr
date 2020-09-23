@@ -1,9 +1,5 @@
 *.py[cod]
 
-# C extensions
-*.o
-*.so
-
 # Packages
 *.egg
 *.egg-info
@@ -24,15 +20,6 @@ VERSION
 # Installer logs
 pip-log.txt
 
-# Unit test / coverage reports
-.pytest_cache/
-.coverage
-*.gcda
-*.gcno
-.tox
-nosetests.xml
-testcase
-
 # Translations
 *.mo
 
@@ -40,3 +27,9 @@ testcase
 .mr.developer.cfg
 .project
 .pydevproject
+
+# MacOS
+.DS_Store
+
+# VS Code
+.vscode

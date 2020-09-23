@@ -38,6 +38,7 @@ from argparse import ArgumentParser
 from os.path import normpath
 from tempfile import mkdtemp
 from shutil import rmtree
+from glob import glob
 
 from .configuration import (
     argument_parser_setup, merge_options_and_set_defaults,
@@ -53,10 +54,12 @@ from .workers import Workers
 # generators
 from .cobertura_xml_generator import print_xml_report
 from .html_generator import print_html_report
+from .json_generator import print_json_report, print_json_summary_report
 from .txt_generator import print_text_report
+from .csv_generator import print_csv_report
 from .summary_generator import print_summary
 from .sonarqube_generator import print_sonarqube_report
-from .json_generator import print_json_report
+from .coveralls_generator import print_coveralls_report
 
 
 #
@@ -163,11 +166,41 @@ def main(args=None):
             version=__version__, copyright=COPYRIGHT)
         sys.exit(0)
 
+    if options.html_title == '':
+        logger.error(
+            "an empty --html_title= is not allowed.")
+        sys.exit(1)
+
+    if options.html_medium_threshold == 0:
+        logger.error(
+            "value of --html-medium-threshold= should not be zero.")
+        sys.exit(1)
+
     if options.html_medium_threshold > options.html_high_threshold:
         logger.error(
             "value of --html-medium-threshold={} should be\n"
             "lower than or equal to the value of --html-high-threshold={}.",
             options.html_medium_threshold, options.html_high_threshold)
+        sys.exit(1)
+
+    if options.html_tab_size < 1:
+        logger.error(
+            "value of --html-tab-size= should be greater 0.")
+        sys.exit(1)
+
+    potential_html_output = (
+        (options.html and options.html.value)
+        or (options.html_details and options.html_details.value)
+        or options.output)
+    if options.html_details and not potential_html_output:
+        logger.error(
+            "a named output must be given, if the option --html-details\n"
+            "is used.")
+        sys.exit(1)
+
+    if options.html_self_contained is False and not potential_html_output:
+        logger.error(
+            "can only disable --html-self-contained when a named output is given.")
         sys.exit(1)
 
     if options.output is not None:
@@ -241,6 +274,16 @@ def main(args=None):
         for f in filters:
             logger.verbose_msg('- {}', f)
 
+    if options.exclude_lines_by_pattern:
+        try:
+            re.compile(options.exclude_lines_by_pattern)
+        except re.error as e:
+            logger.error(
+                "--exclude-lines-by-pattern: "
+                "Invalid regular expression: {}, error: {}",
+                repr(options.exclude_lines_by_pattern), e)
+            sys.exit(1)
+
     covdata = dict()
     if options.add_tracefile:
         collect_coverage_from_tracefiles(covdata, options, logger)
@@ -259,13 +302,17 @@ def main(args=None):
 def collect_coverage_from_tracefiles(covdata, options, logger):
     datafiles = set()
 
-    for trace_file in options.add_tracefile:
-        if not os.path.exists(normpath(trace_file)):
+    for trace_files_regex in options.add_tracefile:
+        trace_files = glob(trace_files_regex, recursive=True)
+        if not trace_files:
             logger.error(
                 "Bad --add-tracefile option.\n"
                 "\tThe specified file does not exist.")
             sys.exit(1)
-        datafiles.add(trace_file)
+        else:
+            for trace_file in trace_files:
+                datafiles.add(normpath(trace_file))
+
     options.root_dir = os.path.abspath(options.root)
     gcovr_json_files_to_coverage(datafiles, covdata, options)
 
@@ -315,60 +362,87 @@ def collect_coverage_from_gcov(covdata, options, logger):
 
 
 def print_reports(covdata, options, logger):
-    reports_were_written = False
-    default_output = OutputOrDefault(options.output)
-
     generators = []
 
-    generators.append((
-        lambda: options.xml or options.prettyxml,
-        [options.xml],
-        print_xml_report,
-        lambda: logger.warn(
-            "Cobertura output skipped - "
-            "consider providing an output file with `--xml=OUTPUT`.")))
+    if options.txt:
+        generators.append((
+            [options.txt],
+            print_text_report,
+            lambda: logger.warn(
+                "Text output skipped - "
+                "consider providing an output file with `--txt=OUTPUT`.")))
 
-    generators.append((
-        lambda: options.html or options.html_details,
-        [options.html, options.html_details],
-        print_html_report,
-        lambda: logger.warn(
-            "HTML output skipped - "
-            "consider providing an output file with `--html=OUTPUT`.")))
+    if options.xml or options.prettyxml:
+        generators.append((
+            [options.xml],
+            print_xml_report,
+            lambda: logger.warn(
+                "Cobertura output skipped - "
+                "consider providing an output file with `--xml=OUTPUT`.")))
 
-    generators.append((
-        lambda: options.sonarqube,
-        [options.sonarqube],
-        print_sonarqube_report,
-        lambda: logger.warn(
-            "Sonarqube output skipped - "
-            "consider providing output file with `--sonarqube=OUTPUT`.")))
+    if options.html or options.html_details:
+        generators.append((
+            [options.html, options.html_details],
+            print_html_report,
+            lambda: logger.warn(
+                "HTML output skipped - "
+                "consider providing an output file with `--html=OUTPUT`.")))
 
-    generators.append((
-        lambda: options.json or options.prettyjson,
-        [options.json],
-        print_json_report,
-        lambda: logger.warn(
-            "JSON output skipped - "
-            "consider providing output file with `--json=OUTPUT`.")))
+    if options.sonarqube:
+        generators.append((
+            [options.sonarqube],
+            print_sonarqube_report,
+            lambda: logger.warn(
+                "Sonarqube output skipped - "
+                "consider providing output file with `--sonarqube=OUTPUT`.")))
 
-    generators.append((
-        lambda: not reports_were_written,
-        [],
-        print_text_report,
-        lambda: None))
+    if options.json or options.json_pretty:
+        generators.append((
+            [options.json],
+            print_json_report,
+            lambda: logger.warn(
+                "JSON output skipped - "
+                "consider providing output file with `--json=OUTPUT`.")))
 
-    for should_run, output_choices, generator, on_no_output in generators:
-        if should_run():
-            output = OutputOrDefault.choose(output_choices,
-                                            default=default_output)
-            if output is default_output:
-                default_output = None
-            if output is not None:
-                generator(covdata, output.value, options)
-                reports_were_written = True
-            else:
-                on_no_output()
+    if options.json_summary or options.json_summary_pretty:
+        generators.append((
+            [options.json_summary],
+            print_json_summary_report,
+            lambda: logger.warn(
+                "JSON summary output skipped - "
+                "consider providing output file with `--json-summary=OUTPUT`.")))
+
+    if options.csv:
+        generators.append((
+            [options.csv],
+            print_csv_report,
+            lambda: logger.warn(
+                "CSV output skipped - "
+                "consider providing output file with `--csv=OUTPUT`.")))
+
+    if options.coveralls or options.coveralls_pretty:
+        generators.append((
+            [options.coveralls],
+            print_coveralls_report,
+            lambda: logger.warn(
+                "Coveralls output skipped - "
+                "consider providing output file with `--coveralls=OUTPUT`.")))
+
+    reports_were_written = False
+    default_output = OutputOrDefault(options.output)
+    for output_choices, generator, on_no_output in generators:
+        output = OutputOrDefault.choose(output_choices, default=default_output)
+        if output is default_output:
+            default_output = None
+        if output is not None:
+            generator(covdata, output.value, options)
+            reports_were_written = True
+        else:
+            on_no_output()
+
+    if not reports_were_written:
+        print_text_report(covdata, default_output.value, options)
+        default_output = None
 
     if default_output is not None and default_output.value is not None:
         logger.warn("--output={!r} option was provided but not used.",
