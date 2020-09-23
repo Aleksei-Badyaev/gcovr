@@ -1,0 +1,6 @@
+-r requirements.txt
+cmake
+flake8
+pytest
+pytest-cov
+pyutilib
